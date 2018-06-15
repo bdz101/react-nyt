@@ -1,95 +1,77 @@
-// Include React
 var React = require("react");
 
-// Here we include all of the sub-components
-var Form = require("./children/Form");
-var Results = require("./children/History");
+//sub-components
+var Search = require("./children/Search.js");
+var Results = require("./children/Results.js");
+var Saved = require("./children/Saved.js");
 
+var helpers = require("./utils/helpers.js");
 
-// Helper for making AJAX requests to our API
-var helpers = require("./utils/helpers");
-
-// Creating the Main component
+//creating Main Component
 var Main = React.createClass({
-
-  // Here we set a generic state associated with the number of clicks
-  // Note how we added in this history state variable
-  getInitialState: function() {
-    return { searchTerm: "", results: "", history: [] };
+  getInitialState: function(){
+    return { search: ["","",""], results: [], saved: []};
   },
-
-  // The moment the page renders get the History
-  componentDidMount: function() {
-    // Get the latest history.
-    helpers.getHistory().then(function(response) {
-      console.log(response);
-      if (response !== this.state.history) {
-        console.log("History", response.data);
-        this.setState({ history: response.data });
-      }
+  //loads when page is ready
+  componentDidMount: function(){
+    //gets all saved articles
+    helpers.getSaved().then(function(response) {
+      console.log("Saved: " + response.data);
+      this.setState({ saved: response.data });
     }.bind(this));
   },
+  //any time a component changes, it updates
+  componentDidUpdate: function(){
+    var searchTerms = this.state.search;
+      // Run the query for the address
+      helpers.runQuery(searchTerms[0], searchTerms[1], searchTerms[2]).then(function(data) {
+        if(data !== this.state.results){
+          console.log("Results," + data);
+          this.setState({ results: data });
 
-  // If the component changes (i.e. if a search is entered)...
-  componentDidUpdate: function() {
+          // After we've received the result... then post the search term to our history.
+          helpers.postSaved(this.state.search).then(function() {
+            console.log("Updated!");
 
-    // Run the query for the address
-    helpers.runQuery(this.state.searchTerm).then(function(data) {
-      if (data !== this.state.results) {
-        console.log("Address", data);
-        this.setState({ results: data });
+            // After we've done the post... then get the updated history
+            helpers.getSaved().then(function(response) {
+              console.log("Current Saved", response.data);
 
-        // After we've received the result... then post the search term to our history.
-        helpers.postHistory(this.state.searchTerm).then(function() {
-          console.log("Updated!");
+              console.log("Saved", response.data);
 
-          // After we've done the post... then get the updated history
-          helpers.getHistory().then(function(response) {
-            console.log("Current History", response.data);
+              this.setState({ saved: response.data });
 
-            console.log("History", response.data);
-
-            this.setState({ history: response.data });
-
+            }.bind(this));
           }.bind(this));
-        }.bind(this));
-      }
-    }.bind(this));
+        }
+      }.bind(this));
   },
-  // This function allows childrens to update the parent.
-  setTerm: function(term) {
-    this.setState({ searchTerm: term });
+  //lets children update to parent
+  setSearch: function(topic, startYear, endYear){
+    this.setState({ search: [topic, startYear, endYear] });
   },
-  // Here we render the function
-  render: function() {
+  //Render the function
+  render: function(){
     return (
       <div className="container">
+
         <div className="row">
-          <div className="jumbotron">
-            <h2 className="text-center">Address Finder!</h2>
-            <p className="text-center">
-              <em>Enter a landmark to search for its exact address (ex: "Eiffel Tower").</em>
-            </p>
+          <div className="card-panel z-depth-4 panelTitle center-align">
+            <h2>New York Times: Article Scrubber</h2>
+            <h5>Search for and annotate articles of interest!</h5>
           </div>
-
-          <div className="col-md-6">
-
-            <Form setTerm={this.setTerm} />
-
-          </div>
-
-          <div className="col-md-6">
-
-            <Results address={this.state.results} />
-
-          </div>
-
         </div>
 
-        <div className="row">
+        <div className="row col s12">
+          <Search setSearch={this.setSearch} />
+        </div>
 
-          <History history={this.state.history} />
+        <div className="row col s12">
+          <Results results={this.state.results} />
+        </div>
 
+        <div className="row col s12">
+          <Saved saved={this.state.saved} />
         </div>
 
       </div>
@@ -97,5 +79,4 @@ var Main = React.createClass({
   }
 });
 
-// Export the component back for use in other files
 module.exports = Main;
